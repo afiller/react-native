@@ -247,13 +247,14 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
   @Override
   public void fling(int velocityY) {
     if (mScroller != null) {
-      // FB SCROLLVIEW CHANGE
-
-      // We provide our own version of fling that uses a different call to the standard OverScroller
-      // which takes into account the possibility of adding new content while the ScrollView is
-      // animating. Because we give essentially no max Y for the fling, the fling will continue as long
-      // as there is content. See #onOverScrolled() to see the second part of this change which properly
-      // aborts the scroller animation when we get to the bottom of the ScrollView content.
+      // Workaround.
+      // On Android P if a ScrollView is inverted, we will get a wrong sign for
+      // velocityY (see https://issuetracker.google.com/issues/112385925). 
+      // At the same time, mOnScrollDispatchHelper tracks the correct velocity direction. 
+      //
+      // Hence, we can use the absolute value from whatever the OS gives
+      // us and use the sign of what mOnScrollDispatchHelper has tracked.
+      final int correctedVelocityY = (int)(Math.abs(velocityY) * Math.signum(mOnScrollDispatchHelper.getYFlingVelocity()));
 
       int scrollWindowHeight = getHeight() - getPaddingBottom() - getPaddingTop();
 
@@ -261,7 +262,7 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
         getScrollX(),
         getScrollY(),
         0,
-        velocityY,
+        correctedVelocityY,
         0,
         0,
         0,
@@ -273,7 +274,7 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
 
       // END FB SCROLLVIEW CHANGE
     } else {
-      super.fling(velocityY);
+      super.fling(correctedVelocityY);
     }
 
     if (mSendMomentumEvents || isScrollPerfLoggingEnabled()) {
